@@ -3,177 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的旅遊規劃大師</title>
+    <title>大阪旅遊助手 Pro</title>
     <style>
         :root { --primary: #1A73E8; --hotel-color: #F9AB00; --bg: #f8f9fa; --danger: #EA4335; --pending: #607D8B; --share: #34A853; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 10px; margin: 0; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 0; margin: 0; overflow-x: hidden; }
         
-        /* 面板與標題 */
-        .setup-panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        .editable-title { font-size: 24px; font-weight: bold; color: var(--primary); border: none; text-align: center; width: 100%; margin-bottom: 15px; outline: none; }
+        /* 控制面板 */
+        .setup-panel { background: white; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; position: sticky; top: 0; z-index: 100; }
+        .editable-title { font-size: 20px; font-weight: bold; color: var(--primary); border: none; text-align: center; width: 100%; outline: none; margin-bottom: 10px; }
 
-        /* 分享控制區 */
-        .share-control { background: #e6f4ea; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; justify-content: center; }
-        .btn-share { background: var(--share); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        /* 分享功能 */
+        .share-control { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+        .btn-share { background: var(--share); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 
-        .hotel-source-box { background: #FFF9E1; border: 2px dashed var(--hotel-color); padding: 12px; margin: 10px auto; border-radius: 10px; display: inline-block; cursor: grab; font-weight: bold; color: #856404; }
+        /* 行程容器：手機改為上下堆疊，桌面維持橫向 */
+        .itinerary-wrapper { display: flex; flex-direction: column; gap: 15px; padding: 15px; }
+        @media (min-width: 768px) {
+            .itinerary-wrapper { flex-direction: row; overflow-x: auto; height: calc(100vh - 200px); }
+        }
 
-        /* 佈局 */
-        .itinerary-wrapper { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; min-height: 70vh; }
-        .pending-card { min-width: 280px; background: #eceff1; border-radius: 12px; border: 2px dashed var(--pending); flex-shrink: 0; position: sticky; left: 0; z-index: 10; }
-        .day-card { min-width: 320px; background: white; border-radius: 12px; border: 1px solid #ddd; flex-shrink: 0; }
+        /* 待安排區：手機版可收合 */
+        .pending-card { background: #eceff1; border-radius: 12px; border: 2px dashed var(--pending); flex-shrink: 0; }
+        .pending-content { display: none; padding: 10px; }
+        .pending-card.open .pending-content { display: block; }
         
-        .day-header, .pending-header { padding: 15px; color: white; border-radius: 11px 11px 0 0; font-weight: bold; text-align: center; }
+        @media (min-width: 768px) {
+            .pending-card { min-width: 280px; position: sticky; left: 0; z-index: 10; height: fit-content; }
+            .pending-content { display: block; }
+        }
+
+        .day-card { min-width: 100%; background: white; border-radius: 12px; border: 1px solid #ddd; }
+        @media (min-width: 768px) { .day-card { min-width: 320px; } }
+        
+        .header-bar { padding: 12px; color: white; border-radius: 11px 11px 0 0; font-weight: bold; text-align: center; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
         .day-header { background: var(--primary); }
         .pending-header { background: var(--pending); }
 
-        /* 項目樣式 */
-        .spot-list { padding: 15px; list-style: none; margin: 0; min-height: 150px; }
-        .spot-item { padding: 12px; border-radius: 8px; background: #fff; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: grab; margin-bottom: 5px; }
-        .spot-item.drag-over { border-top: 4px solid var(--primary); }
-        .is-hotel { border-left: 5px solid var(--hotel-color); background: #FFFDF5; }
-        .delete-btn { color: var(--danger); cursor: pointer; font-weight: bold; }
+        /* 點選項目與路徑 */
+        .spot-list { padding: 10px; min-height: 80px; }
+        .spot-item { padding: 12px; border-radius: 8px; background: #fff; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+        .is-hotel { border-left: 5px solid var(--hotel-color); }
+        .route-link { display: flex; align-items: center; padding: 0 0 10px 35px; text-decoration: none; color: var(--primary); font-size: 12px; position: relative; }
+        .route-link::before { content: ""; position: absolute; left: 18px; top: -10px; bottom: 0; width: 2px; background: #ddd; }
+        .route-btn { background: #e8f0fe; padding: 2px 8px; border-radius: 4px; }
 
-        /* 路徑與按鈕 */
-        .route-link { display: flex; align-items: center; padding: 5px 0 10px 40px; text-decoration: none; color: var(--primary); font-size: 12px; position: relative; }
-        .route-link::before { content: ""; position: absolute; left: 20px; top: -10px; bottom: 0; width: 2px; background: #eee; }
-        .route-btn { background: #e8f0fe; padding: 2px 8px; border-radius: 4px; border: 1px solid #d2e3fc; }
-
-        .add-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 5px; }
-        input, button { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
-        .btn-add { background: var(--primary); color: white; border: none; cursor: pointer; }
-        .save-hint { font-size: 12px; color: var(--share); display: none; margin-top: 5px; }
+        .add-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; }
+        input, button { padding: 8px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
+        .btn-add { background: var(--primary); color: white; border: none; }
     </style>
 </head>
 <body>
 
 <div class="setup-panel">
-    <input type="text" id="tripTitle" class="editable-title" value="我的大阪旅遊行程" oninput="saveData()">
-    
+    <input type="text" id="tripTitle" class="editable-title" value="我的大阪之旅" oninput="saveData()">
     <div class="share-control">
-        <button class="btn-share" onclick="exportData()">📤 複製行程代碼 (分享)</button>
-        <button class="btn-share" onclick="importData()">📥 匯入行程代碼</button>
+        <button class="btn-share" onclick="exportData()">📤 複製短碼</button>
+        <button class="btn-share" onclick="importData()">📥 匯入行程</button>
     </div>
-
-    <div style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
-        <input type="text" id="hotelName" value="大阪難波格拉斯麗酒店" oninput="saveData()" style="border:1px solid var(--hotel-color); width:200px;">
-        <input type="date" id="startDate" value="2026-02-16">
-        <input type="date" id="endDate" value="2026-02-21">
-        <button onclick="confirmReset()" class="btn-add">重設日期</button>
+    <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+        <input type="text" id="hotelName" value="飯店" oninput="saveData()" style="width:120px;">
+        <input type="date" id="startDate" value="2026-02-16" style="width:120px;">
+        <button onclick="initTrip()" class="btn-add" style="padding: 4px 8px; font-size:12px;">重設日期</button>
     </div>
-    <div class="hotel-source-box" draggable="true" ondragstart="dragStartTemplate(event)">🏨 拖動飯店</div>
-    <div id="saveHint" class="save-hint">✓ 已存至本地</div>
 </div>
 
 <div class="itinerary-wrapper">
-    <div class="pending-card">
-        <div class="pending-header">📋 待安排區</div>
-        <div class="spot-list" id="list-pending" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')"></div>
-        <div class="add-area">
-            <input type="text" id="input-pending" placeholder="想去哪？" style="flex:1">
-            <button class="btn-add" style="background:var(--pending)" onclick="addNewSpot('pending')">＋</button>
+    <div class="pending-card" id="pendingCard">
+        <div class="header-bar pending-header" onclick="togglePending()">
+            📋 待安排景點 <span id="pendingToggleIcon">▼</span>
+        </div>
+        <div class="pending-content">
+            <div class="spot-list" id="list-pending" ondragover="allowDrop(event)" ondrop="drop(event, 'pending')"></div>
+            <div class="add-area">
+                <input type="text" id="input-pending" placeholder="想去哪？" style="flex:1">
+                <button class="btn-add" style="background:var(--pending)" onclick="addNewSpot('pending')">＋</button>
+            </div>
         </div>
     </div>
     <div id="dailyContainer" style="display:contents;"></div>
 </div>
 
 <script>
-    let tripData = { "title": "我的旅遊行程", "hotel": "住宿飯店", "days": { "pending": [] } };
+    let tripData = { t: "我的大阪之旅", h: "飯店", d: { "pending": [] } };
 
     window.onload = function() {
-        const localData = localStorage.getItem('myTripMasterV4');
-        if (localData) {
-            tripData = JSON.parse(localData);
-            document.getElementById('tripTitle').value = tripData.title;
-            document.getElementById('hotelName').value = tripData.hotel;
+        const local = localStorage.getItem('myTripV5');
+        if (local) {
+            tripData = JSON.parse(local);
+            document.getElementById('tripTitle').value = tripData.t;
+            document.getElementById('hotelName').value = tripData.h;
             refreshUI();
-        } else {
-            initTrip();
-        }
+        } else { initTrip(); }
     };
+
+    function togglePending() {
+        const card = document.getElementById('pendingCard');
+        card.classList.toggle('open');
+        document.getElementById('pendingToggleIcon').innerText = card.classList.contains('open') ? '▲' : '▼';
+    }
 
     function initTrip() {
         const start = new Date(document.getElementById('startDate').value);
-        const end = new Date(document.getElementById('endDate').value);
-        const oldPending = tripData.days["pending"] || [];
-        tripData.days = { "pending": oldPending };
-        let current = new Date(start);
-        while (current <= end) {
-            tripData.days[current.toISOString().split('T')[0]] = [];
-            current.setDate(current.getDate() + 1);
+        const oldP = tripData.d["pending"] || [];
+        tripData.d = { "pending": oldP };
+        for(let i=0; i<6; i++){ // 預設產出6天
+            const d = new Date(start); d.setDate(start.getDate() + i);
+            tripData.d[d.toISOString().split('T')[0]] = [];
         }
-        saveData();
-        refreshUI();
+        saveData(); refreshUI();
     }
 
     function refreshUI() {
-        const dailyContainer = document.getElementById('dailyContainer');
-        dailyContainer.innerHTML = '';
-        const dates = Object.keys(tripData.days).filter(d => d !== 'pending').sort();
-        dates.forEach((dateStr, idx) => {
-            const dayCard = document.createElement('div');
-            dayCard.className = 'day-card';
-            dayCard.innerHTML = `<div class="day-header">Day ${idx + 1} - ${dateStr}</div><div class="spot-list" id="list-${dateStr}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${dateStr}')"></div><div class="add-area"><input type="text" id="input-${dateStr}" placeholder="新增點..." style="flex:1"><button class="btn-add" onclick="addNewSpot('${dateStr}')">＋</button></div>`;
-            dailyContainer.appendChild(dayCard);
+        const container = document.getElementById('dailyContainer');
+        container.innerHTML = '';
+        const dates = Object.keys(tripData.d).filter(x => x !== 'pending').sort();
+        dates.forEach((date, i) => {
+            const card = document.createElement('div');
+            card.className = 'day-card';
+            card.innerHTML = `<div class="header-bar day-header">Day ${i+1} - ${date}</div><div class="spot-list" id="list-${date}" ondragover="allowDrop(event)" ondrop="drop(event, '${date}')"></div><div class="add-area"><input type="text" id="input-${date}" placeholder="新增點..." style="flex:1"><button class="btn-add" onclick="addNewSpot('${date}')">＋</button></div>`;
+            container.appendChild(card);
         });
-        renderAllSpots();
+        renderSpots();
     }
 
     function saveData() {
-        tripData.title = document.getElementById('tripTitle').value;
-        tripData.hotel = document.getElementById('hotelName').value;
-        localStorage.setItem('myTripMasterV4', JSON.stringify(tripData));
-        const hint = document.getElementById('saveHint');
-        hint.style.display = 'block'; setTimeout(() => hint.style.display = 'none', 1000);
+        tripData.t = document.getElementById('tripTitle').value;
+        tripData.h = document.getElementById('hotelName').value;
+        localStorage.setItem('myTripV5', JSON.stringify(tripData));
     }
 
-    /* 分享功能：匯出與匯入 */
+    // 分享碼縮短邏輯：使用簡寫並移除冗餘字元
     function exportData() {
-        const dataStr = btoa(encodeURIComponent(JSON.stringify(tripData)));
-        navigator.clipboard.writeText(dataStr).then(() => alert("行程代碼已複製到剪貼簿！請將代碼傳給朋友，叫他們點擊『匯入』。"));
+        const str = JSON.stringify(tripData);
+        const compressed = btoa(encodeURIComponent(str)).replace(/=+$/, '');
+        navigator.clipboard.writeText(compressed).then(() => alert("行程短碼已複製！"));
     }
 
     function importData() {
-        const code = prompt("請貼上朋友分享給你的行程代碼：");
+        const code = prompt("貼上行程碼：");
         if (code) {
             try {
-                const decodedData = JSON.parse(decodeURIComponent(atob(code)));
-                if (confirm("匯入將會取代你目前的行程，確定嗎？")) {
-                    tripData = decodedData;
-                    document.getElementById('tripTitle').value = tripData.title;
-                    document.getElementById('hotelName').value = tripData.hotel;
-                    saveData();
-                    refreshUI();
-                }
-            } catch (e) { alert("無效的代碼，請確認是否複製完整。"); }
+                const decoded = JSON.parse(decodeURIComponent(atob(code)));
+                tripData = decoded;
+                saveData(); location.reload();
+            } catch (e) { alert("代碼錯誤"); }
         }
     }
 
-    function dragStartItem(ev, dateStr, index) { ev.dataTransfer.setData("type", "EXISTING"); ev.dataTransfer.setData("date", dateStr); ev.dataTransfer.setData("index", index); }
-    function dragStartTemplate(ev) { ev.dataTransfer.setData("type", "TEMPLATE"); ev.dataTransfer.setData("name", document.getElementById('hotelName').value); }
-    function handleDragOver(ev) { ev.preventDefault(); const target = ev.target.closest('.spot-item'); document.querySelectorAll('.spot-item').forEach(el => el.classList.remove('drag-over')); if (target) target.classList.add('drag-over'); }
-    function handleDrop(ev, destDate) { ev.preventDefault(); document.querySelectorAll('.spot-item').forEach(el => el.classList.remove('drag-over')); const type = ev.dataTransfer.getData("type"); const targetElement = ev.target.closest('.spot-item'); let insertIndex = tripData.days[destDate].length; if (targetElement) { const listItems = Array.from(targetElement.parentNode.children).filter(el => el.classList.contains('spot-item')); insertIndex = listItems.indexOf(targetElement); } if (type === "TEMPLATE") { tripData.days[destDate].splice(insertIndex, 0, ev.dataTransfer.getData("name")); } else { const srcDate = ev.dataTransfer.getData("date"); const srcIdx = parseInt(ev.dataTransfer.getData("index")); const item = tripData.days[srcDate].splice(srcIdx, 1)[0]; let adjIdx = (srcDate === destDate && srcIdx < insertIndex) ? insertIndex - 1 : insertIndex; tripData.days[destDate].splice(adjIdx, 0, item); } saveData(); renderAllSpots(); }
-    function addNewSpot(dateStr) { const input = document.getElementById(`input-${dateStr}`); if (input.value.trim()) { tripData.days[dateStr].push(input.value.trim()); input.value = ''; saveData(); renderAllSpots(); } }
-    function renderAllSpots() {
-        for (let dateStr in tripData.days) {
-            const list = document.getElementById(`list-${dateStr}`);
-            if (!list) continue; list.innerHTML = '';
-            tripData.days[dateStr].forEach((name, idx) => {
+    function allowDrop(e) { e.preventDefault(); }
+    function drop(e, dest) {
+        e.preventDefault();
+        const type = e.dataTransfer.getData("type");
+        if (type === "EXISTING") {
+            const sD = e.dataTransfer.getData("date");
+            const sI = parseInt(e.dataTransfer.getData("index"));
+            const item = tripData.d[sD].splice(sI, 1)[0];
+            tripData.d[dest].push(item);
+        } else if (type === "TEMPLATE") {
+            tripData.d[dest].push(tripData.h);
+        }
+        saveData(); renderSpots();
+    }
+
+    function addNewSpot(d) {
+        const val = document.getElementById(`input-${d}`).value.trim();
+        if (val) { tripData.d[d].push(val); document.getElementById(`input-${d}`).value = ''; saveData(); renderSpots(); }
+    }
+
+    function renderSpots() {
+        for (let d in tripData.d) {
+            const list = document.getElementById(`list-${d}`); if (!list) continue;
+            list.innerHTML = '';
+            tripData.d[d].forEach((name, i) => {
                 const item = document.createElement('div');
-                item.className = `spot-item ${name === tripData.hotel ? 'is-hotel' : ''}`;
-                item.draggable = true; item.ondragstart = (e) => dragStartItem(e, dateStr, idx);
-                item.innerHTML = `<span>${name}</span><span class="delete-btn" onclick="removeSpot('${dateStr}', ${idx})">✕</span>`;
+                item.className = `spot-item ${name === tripData.h ? 'is-hotel' : ''}`;
+                item.draggable = true;
+                item.ondragstart = (e) => {
+                    e.dataTransfer.setData("type", "EXISTING");
+                    e.dataTransfer.setData("date", d);
+                    e.dataTransfer.setData("index", i);
+                };
+                item.innerHTML = `<span>${name}</span><span style="color:red" onclick="removeSpot('${d}',${i})">✕</span>`;
                 list.appendChild(item);
-                if (dateStr !== 'pending' && idx < tripData.days[dateStr].length - 1) {
-                    const from = encodeURIComponent(tripData.days[dateStr][idx]);
-                    const to = encodeURIComponent(tripData.days[dateStr][idx+1]);
-                    const link = document.createElement('a'); link.className = 'route-link'; link.href = `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=transit`; link.target = "_blank"; link.innerHTML = `<span class="route-btn">查看路徑</span>`; list.appendChild(link);
+                if (d !== 'pending' && i < tripData.d[d].length - 1) {
+                    const l = document.createElement('a'); l.className = 'route-link';
+                    l.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(tripData.d[d][i])}&destination=${encodeURIComponent(tripData.d[d][i+1])}&travelmode=transit`;
+                    l.target = "_blank"; l.innerHTML = `<span class="route-btn">查看路徑</span>`;
+                    list.appendChild(l);
                 }
             });
         }
     }
-    function removeSpot(dateStr, idx) { tripData.days[dateStr].splice(idx, 1); saveData(); renderAllSpots(); }
-    function confirmReset() { if (confirm("這會清除已排好的日期。確定嗎？")) initTrip(); }
+    function removeSpot(d, i) { tripData.d[d].splice(i, 1); saveData(); renderSpots(); }
+    function dragStartTemplate(e) { e.dataTransfer.setData("type", "TEMPLATE"); }
 </script>
 </body>
 </html>
