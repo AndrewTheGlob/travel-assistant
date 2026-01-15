@@ -3,78 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>大阪旅遊助手 Pro v4</title>
+    <title>大阪旅遊助手 Ultimate</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         :root { --primary: #1A73E8; --hotel-color: #F9AB00; --bg: #f8f9fa; --danger: #EA4335; --pending: #607D8B; --share: #34A853; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 0; margin: 0; overflow-x: hidden; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 0; margin: 0; }
         
-        .setup-panel { background: white; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; position: sticky; top: 0; z-index: 100; }
-        .editable-title { font-size: 20px; font-weight: bold; color: var(--primary); border: none; text-align: center; width: 100%; outline: none; margin-bottom: 8px; border-bottom: 2px solid transparent; }
-        .editable-title:focus { border-bottom: 2px solid var(--primary); background: #f0f7ff; }
+        /* 頂部控制台 */
+        .setup-panel { background: white; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; z-index: 200; position: relative; }
+        .editable-title { font-size: 20px; font-weight: bold; color: var(--primary); border: none; text-align: center; width: 100%; outline: none; margin-bottom: 8px; }
 
         .share-control { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
         .btn-share { background: var(--share); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 
-        .hotel-source-box { background: #FFF9E1; border: 2px dashed var(--hotel-color); padding: 8px 15px; margin: 5px auto; border-radius: 10px; display: inline-block; cursor: grab; font-weight: bold; color: #856404; font-size: 14px; }
+        .hotel-source-box { background: #FFF9E1; border: 2px dashed var(--hotel-color); padding: 8px 15px; margin: 5px auto; border-radius: 10px; display: inline-block; cursor: grab; font-weight: bold; color: #856404; font-size: 14px; touch-action: none; }
 
+        /* 核心佈局：手機版待安排區固定在頂部 */
         .itinerary-wrapper { display: flex; flex-direction: column; gap: 15px; padding: 15px; }
-        @media (min-width: 768px) { .itinerary-wrapper { flex-direction: row; overflow-x: auto; height: calc(100vh - 220px); align-items: flex-start; } }
-
-        .pending-card { background: #eceff1; border-radius: 12px; border: 2px dashed var(--pending); flex-shrink: 0; }
-        .pending-content { display: none; padding: 10px; }
-        .pending-card.open .pending-content { display: block; }
         
-        @media (min-width: 768px) { .pending-card { min-width: 280px; position: sticky; left: 0; z-index: 10; height: fit-content; } .pending-content { display: block; } }
+        /* 待安排區：手機版懸浮固定 */
+        .pending-card { 
+            background: #eceff1; border-radius: 12px; border: 2px dashed var(--pending); 
+            position: sticky; top: 10px; z-index: 150; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-height: 200px; display: flex; flex-direction: column;
+        }
+        .pending-content { overflow-y: auto; padding: 10px; transition: max-height 0.3s ease; }
+        .pending-card.collapsed .pending-content { display: none; }
 
-        .day-card { min-width: 100%; background: white; border-radius: 12px; border: 1px solid #ddd; }
+        @media (min-width: 768px) {
+            .itinerary-wrapper { flex-direction: row; overflow-x: auto; height: calc(100vh - 250px); align-items: flex-start; }
+            .pending-card { min-width: 280px; top: 0; max-height: 100%; }
+            .pending-content { display: block !important; }
+        }
+
+        /* 日期卡片與摺疊邏輯 */
+        .day-card { min-width: 100%; background: white; border-radius: 12px; border: 1px solid #ddd; overflow: hidden; }
+        .day-card.collapsed .spot-list, .day-card.collapsed .add-area { display: none; }
+        
         @media (min-width: 768px) { .day-card { min-width: 320px; } }
         
-        .header-bar { padding: 12px; color: white; border-radius: 11px 11px 0 0; font-weight: bold; text-align: center; cursor: pointer; display: flex; justify-content: center; gap: 8px; }
-        .day-header { background: var(--primary); cursor: default; }
+        .header-bar { padding: 12px; color: white; font-weight: bold; text-align: center; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; }
+        .day-header { background: var(--primary); }
         .pending-header { background: var(--pending); }
+        .toggle-arrow { font-size: 12px; transition: transform 0.3s; }
+        .collapsed .toggle-arrow { transform: rotate(-90deg); }
 
-        .spot-list { padding: 10px; min-height: 80px; }
-        .spot-item { padding: 12px; border-radius: 8px; background: #fff; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: grab; }
+        /* 項目樣式：優化手機點擊區域 */
+        .spot-list { padding: 10px; min-height: 60px; }
+        .spot-item { 
+            padding: 15px; border-radius: 8px; background: #fff; border: 1px solid #eee; 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 8px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            cursor: grab; touch-action: none; /* 禁用瀏覽器默認觸控動作以利拖拽 */
+        }
+        .spot-item:active { opacity: 0.7; scale: 0.98; }
         .spot-item.drag-over { border-top: 4px solid var(--primary); }
         .is-hotel { border-left: 5px solid var(--hotel-color); background: #FFFDF5; }
         
         .route-link { display: flex; align-items: center; padding: 0 0 10px 35px; text-decoration: none; color: var(--primary); font-size: 12px; position: relative; }
         .route-link::before { content: ""; position: absolute; left: 18px; top: -10px; bottom: 0; width: 2px; background: #ddd; }
-        .route-btn { background: #e8f0fe; padding: 2px 8px; border-radius: 4px; border: 1px solid #d2e3fc; }
+        .route-btn { background: #e8f0fe; padding: 4px 10px; border-radius: 4px; border: 1px solid #d2e3fc; }
 
         .add-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; }
-        input, button { padding: 8px; border-radius: 6px; border: 1px solid #ddd; }
-        .btn-add { background: var(--primary); color: white; border: none; cursor: pointer; }
+        input, button { padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
+        .btn-add { background: var(--primary); color: white; border: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="setup-panel">
     <input type="text" id="tripTitle" class="editable-title" value="我的大阪之旅" oninput="saveData()">
-    
     <div class="share-control">
         <button class="btn-share" onclick="exportData()">📤 複製短碼</button>
         <button class="btn-share" onclick="importData()">📥 匯入行程</button>
     </div>
-
     <div style="display:flex; gap:5px; justify-content:center; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
-        <input type="text" id="hotelName" value="飯店名稱" oninput="saveData()" style="width:100px;">
-        <input type="date" id="startDate" value="2026-02-16" style="width:130px;">
+        <input type="text" id="hotelName" value="飯店" oninput="saveData()" style="width:80px;">
+        <input type="date" id="startDate" value="2026-02-16" style="width:125px;">
         <span>至</span>
-        <input type="date" id="endDate" value="2026-02-21" style="width:130px;">
-        <button onclick="confirmReset()" class="btn-add" style="padding: 4px 10px; font-size:12px;">重設日期區間</button>
+        <input type="date" id="endDate" value="2026-02-21" style="width:125px;">
+        <button onclick="confirmReset()" class="btn-add" style="padding: 6px; font-size:12px;">重設日期</button>
     </div>
-
-    <div class="hotel-source-box" draggable="true" ondragstart="dragStartTemplate(event)">
-        🏨 拖動我插入飯店
-    </div>
+    <div class="hotel-source-box" draggable="true" ondragstart="dragStartTemplate(event)">🏨 飯店零件 (拖動)</div>
 </div>
 
 <div class="itinerary-wrapper">
     <div class="pending-card" id="pendingCard">
-        <div class="header-bar pending-header" onclick="togglePending()">
-            📋 待安排景點 <span id="pendingToggleIcon">▼</span>
+        <div class="header-bar pending-header" onclick="toggleSection('pendingCard')">
+            <span>📋 待安排口袋</span>
+            <span class="toggle-arrow">▼</span>
         </div>
         <div class="pending-content">
             <div class="spot-list" id="list-pending" ondragover="handleDragOver(event)" ondrop="handleDrop(event, 'pending')"></div>
@@ -88,68 +105,56 @@
 </div>
 
 <script>
-    let tripData = { t: "我的大阪之旅", h: "飯店名稱", d: { "pending": [] } };
+    let tripData = { t: "我的大阪之旅", h: "飯店", d: { "pending": [] } };
 
     window.onload = function() {
-        const local = localStorage.getItem('myTripFinalV1');
+        const local = localStorage.getItem('myTripV7_Ultimate');
         if (local) {
             tripData = JSON.parse(local);
-            document.getElementById('tripTitle').value = tripData.t || "我的大阪之旅";
-            document.getElementById('hotelName').value = tripData.h || "飯店名稱";
+            document.getElementById('tripTitle').value = tripData.t;
+            document.getElementById('hotelName').value = tripData.h;
             refreshUI();
-        } else {
-            initTrip();
-        }
+        } else { initTrip(); }
     };
 
-    function togglePending() {
-        const card = document.getElementById('pendingCard');
-        card.classList.toggle('open');
-        document.getElementById('pendingToggleIcon').innerText = card.classList.contains('open') ? '▲' : '▼';
+    // 摺疊/展開切換
+    function toggleSection(id) {
+        document.getElementById(id).classList.toggle('collapsed');
     }
 
-    // 完整修復：起始與結束日期的循環產出
     function initTrip() {
         const start = new Date(document.getElementById('startDate').value);
         const end = new Date(document.getElementById('endDate').value);
-        
-        if (end < start) {
-            alert("結束日期不能早於起始日期！");
-            return;
+        if (end < start) return alert("日期錯誤");
+        const oldP = tripData.d["pending"] || [];
+        tripData.d = { "pending": oldP };
+        let cur = new Date(start);
+        while (cur <= end) {
+            tripData.d[cur.toISOString().split('T')[0]] = [];
+            cur.setDate(cur.getDate() + 1);
         }
-
-        const oldPending = tripData.d["pending"] || [];
-        tripData.d = { "pending": oldPending };
-        
-        let current = new Date(start);
-        while (current <= end) {
-            const dateStr = current.toISOString().split('T')[0];
-            tripData.d[dateStr] = [];
-            current.setDate(current.getDate() + 1);
-        }
-        saveData();
-        refreshUI();
+        saveData(); refreshUI();
     }
 
-    function confirmReset() {
-        if (confirm("這會清除已排好的日期內容（待安排區會保留）。確定嗎？")) {
-            initTrip();
-        }
-    }
+    function confirmReset() { if(confirm("確定重設日期？已排行程將消失。")) initTrip(); }
 
     function refreshUI() {
         const container = document.getElementById('dailyContainer');
         container.innerHTML = '';
         const dates = Object.keys(tripData.d).filter(x => x !== 'pending').sort();
-        
         dates.forEach((date, i) => {
+            const dayId = `day-${date}`;
             const card = document.createElement('div');
             card.className = 'day-card';
+            card.id = dayId;
             card.innerHTML = `
-                <div class="header-bar day-header">Day ${i+1} - ${date}</div>
+                <div class="header-bar day-header" onclick="toggleSection('${dayId}')">
+                    <span>Day ${i+1} - ${date}</span>
+                    <span class="toggle-arrow">▼</span>
+                </div>
                 <div class="spot-list" id="list-${date}" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${date}')"></div>
                 <div class="add-area">
-                    <input type="text" id="input-${date}" placeholder="新增點..." style="flex:1">
+                    <input type="text" id="input-${date}" placeholder="新增景點..." style="flex:1">
                     <button class="btn-add" onclick="addNewSpot('${date}')">＋</button>
                 </div>
             `;
@@ -161,31 +166,25 @@
     function saveData() {
         tripData.t = document.getElementById('tripTitle').value;
         tripData.h = document.getElementById('hotelName').value;
-        localStorage.setItem('myTripFinalV1', JSON.stringify(tripData));
+        localStorage.setItem('myTripV7_Ultimate', JSON.stringify(tripData));
     }
 
     function exportData() {
-        const str = JSON.stringify(tripData);
-        const compressed = LZString.compressToEncodedURIComponent(str);
-        navigator.clipboard.writeText(compressed).then(() => alert("行程短碼已複製！"));
+        const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(tripData));
+        navigator.clipboard.writeText(compressed).then(() => alert("極短碼已複製！"));
     }
 
     function importData() {
-        const code = prompt("貼上行程短碼：");
+        const code = prompt("請貼上短碼：");
         if (code) {
             try {
-                const decompressed = LZString.decompressFromEncodedURIComponent(code);
-                if (decompressed) {
-                    tripData = JSON.parse(decompressed);
-                    document.getElementById('tripTitle').value = tripData.t;
-                    document.getElementById('hotelName').value = tripData.h;
-                    saveData();
-                    refreshUI();
-                }
-            } catch (e) { alert("無效的行程碼"); }
+                const decomp = LZString.decompressFromEncodedURIComponent(code);
+                if (decomp) { tripData = JSON.parse(decomp); saveData(); location.reload(); }
+            } catch (e) { alert("無效代碼"); }
         }
     }
 
+    // 拖曳邏輯修復
     function handleDragOver(ev) {
         ev.preventDefault();
         const target = ev.target.closest('.spot-item');
@@ -196,7 +195,6 @@
     function handleDrop(ev, destDate) {
         ev.preventDefault();
         document.querySelectorAll('.spot-item').forEach(el => el.classList.remove('drag-over'));
-        
         const type = ev.dataTransfer.getData("type");
         const targetElement = ev.target.closest('.spot-item');
         let insertIndex = tripData.d[destDate].length;
@@ -215,31 +213,24 @@
             let adjIdx = (srcDate === destDate && srcIdx < insertIndex) ? insertIndex - 1 : insertIndex;
             tripData.d[destDate].splice(adjIdx, 0, item);
         }
-        saveData();
-        renderSpots();
+        saveData(); renderSpots();
     }
 
     function dragStartTemplate(e) { e.dataTransfer.setData("type", "TEMPLATE"); }
 
     function addNewSpot(d) {
         const val = document.getElementById(`input-${d}`).value.trim();
-        if (val) {
-            tripData.d[d].push(val);
-            document.getElementById(`input-${d}`).value = '';
-            saveData();
-            renderSpots();
-        }
+        if (val) { tripData.d[d].push(val); document.getElementById(`input-${d}`).value = ''; saveData(); renderSpots(); }
     }
 
     function renderSpots() {
-        const currentHotel = document.getElementById('hotelName').value;
+        const hotel = document.getElementById('hotelName').value;
         for (let d in tripData.d) {
-            const list = document.getElementById(`list-${d}`);
-            if (!list) continue;
+            const list = document.getElementById(`list-${d}`); if (!list) continue;
             list.innerHTML = '';
             tripData.d[d].forEach((name, i) => {
                 const item = document.createElement('div');
-                item.className = `spot-item ${name === currentHotel ? 'is-hotel' : ''}`;
+                item.className = `spot-item ${name === hotel ? 'is-hotel' : ''}`;
                 item.draggable = true;
                 item.ondragstart = (e) => {
                     e.dataTransfer.setData("type", "EXISTING");
@@ -248,26 +239,16 @@
                 };
                 item.innerHTML = `<span>${name}</span><span style="color:red; font-weight:bold; cursor:pointer;" onclick="removeSpot('${d}',${i})">✕</span>`;
                 list.appendChild(item);
-                
                 if (d !== 'pending' && i < tripData.d[d].length - 1) {
-                    const l = document.createElement('a');
-                    l.className = 'route-link';
-                    const from = encodeURIComponent(tripData.d[d][i]);
-                    const to = encodeURIComponent(tripData.d[d][i+1]);
-                    l.href = `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=transit`;
-                    l.target = "_blank";
-                    l.innerHTML = `<span class="route-btn">查看路徑</span>`;
+                    const l = document.createElement('a'); l.className = 'route-link';
+                    l.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(tripData.d[d][i])}&destination=${encodeURIComponent(tripData.d[d][i+1])}&travelmode=transit`;
+                    l.target = "_blank"; l.innerHTML = `<span class="route-btn">查看路徑</span>`;
                     list.appendChild(l);
                 }
             });
         }
     }
-
-    function removeSpot(d, i) {
-        tripData.d[d].splice(i, 1);
-        saveData();
-        renderSpots();
-    }
+    function removeSpot(d, i) { tripData.d[d].splice(i, 1); saveData(); renderSpots(); }
 </script>
 </body>
 </html>
