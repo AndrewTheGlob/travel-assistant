@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>大阪旅遊助手 Ultimate</title>
+    <title>行程安排助手</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         :root { --primary: #1A73E8; --hotel-color: #F9AB00; --bg: #f8f9fa; --danger: #EA4335; --pending: #607D8B; --share: #34A853; }
         body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 0; margin: 0; }
         
-        /* 頂部控制台 */
         .setup-panel { background: white; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; z-index: 200; position: relative; }
         .editable-title { font-size: 20px; font-weight: bold; color: var(--primary); border: none; text-align: center; width: 100%; outline: none; margin-bottom: 8px; }
 
@@ -18,10 +17,8 @@
 
         .hotel-source-box { background: #FFF9E1; border: 2px dashed var(--hotel-color); padding: 8px 15px; margin: 5px auto; border-radius: 10px; display: inline-block; cursor: grab; font-weight: bold; color: #856404; font-size: 14px; touch-action: none; }
 
-        /* 核心佈局：手機版待安排區固定在頂部 */
         .itinerary-wrapper { display: flex; flex-direction: column; gap: 15px; padding: 15px; }
         
-        /* 待安排區：手機版懸浮固定 */
         .pending-card { 
             background: #eceff1; border-radius: 12px; border: 2px dashed var(--pending); 
             position: sticky; top: 10px; z-index: 150; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -36,7 +33,6 @@
             .pending-content { display: block !important; }
         }
 
-        /* 日期卡片與摺疊邏輯 */
         .day-card { min-width: 100%; background: white; border-radius: 12px; border: 1px solid #ddd; overflow: hidden; }
         .day-card.collapsed .spot-list, .day-card.collapsed .add-area { display: none; }
         
@@ -48,13 +44,12 @@
         .toggle-arrow { font-size: 12px; transition: transform 0.3s; }
         .collapsed .toggle-arrow { transform: rotate(-90deg); }
 
-        /* 項目樣式：優化手機點擊區域 */
         .spot-list { padding: 10px; min-height: 60px; }
         .spot-item { 
             padding: 15px; border-radius: 8px; background: #fff; border: 1px solid #eee; 
             display: flex; justify-content: space-between; align-items: center; 
             margin-bottom: 8px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-            cursor: grab; touch-action: none; /* 禁用瀏覽器默認觸控動作以利拖拽 */
+            cursor: grab; touch-action: none;
         }
         .spot-item:active { opacity: 0.7; scale: 0.98; }
         .spot-item.drag-over { border-top: 4px solid var(--primary); }
@@ -66,22 +61,22 @@
 
         .add-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; }
         input, button { padding: 10px; border-radius: 6px; border: 1px solid #ddd; }
-        .btn-add { background: var(--primary); color: white; border: none; font-weight: bold; }
+        .btn-add { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="setup-panel">
-    <input type="text" id="tripTitle" class="editable-title" value="我的大阪之旅" oninput="saveData()">
+    <input type="text" id="tripTitle" class="editable-title" value="我的旅遊行程" oninput="saveData()">
     <div class="share-control">
-        <button class="btn-share" onclick="exportData()">📤 複製短碼</button>
+        <button class="btn-share" onclick="exportData()">📤 分享行程</button>
         <button class="btn-share" onclick="importData()">📥 匯入行程</button>
     </div>
     <div style="display:flex; gap:5px; justify-content:center; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
-        <input type="text" id="hotelName" value="飯店" oninput="saveData()" style="width:80px;">
-        <input type="date" id="startDate" value="2026-02-16" style="width:125px;">
+        <input type="text" id="hotelName" value="飯店名稱" oninput="saveData()" style="width:100px;">
+        <input type="date" id="startDate" value="2026-02-16" style="width:130px;">
         <span>至</span>
-        <input type="date" id="endDate" value="2026-02-21" style="width:125px;">
+        <input type="date" id="endDate" value="2026-02-21" style="width:130px;">
         <button onclick="confirmReset()" class="btn-add" style="padding: 6px; font-size:12px;">重設日期</button>
     </div>
     <div class="hotel-source-box" draggable="true" ondragstart="dragStartTemplate(event)">🏨 飯店零件 (拖動)</div>
@@ -105,19 +100,18 @@
 </div>
 
 <script>
-    let tripData = { t: "我的大阪之旅", h: "飯店", d: { "pending": [] } };
+    let tripData = { t: "我的旅遊行程", h: "飯店名稱", d: { "pending": [] } };
 
     window.onload = function() {
-        const local = localStorage.getItem('myTripV7_Ultimate');
+        const local = localStorage.getItem('myTripFinalV2');
         if (local) {
             tripData = JSON.parse(local);
-            document.getElementById('tripTitle').value = tripData.t;
-            document.getElementById('hotelName').value = tripData.h;
+            document.getElementById('tripTitle').value = tripData.t || "我的旅遊行程";
+            document.getElementById('hotelName').value = tripData.h || "飯店名稱";
             refreshUI();
         } else { initTrip(); }
     };
 
-    // 摺疊/展開切換
     function toggleSection(id) {
         document.getElementById(id).classList.toggle('collapsed');
     }
@@ -166,16 +160,16 @@
     function saveData() {
         tripData.t = document.getElementById('tripTitle').value;
         tripData.h = document.getElementById('hotelName').value;
-        localStorage.setItem('myTripV7_Ultimate', JSON.stringify(tripData));
+        localStorage.setItem('myTripFinalV2', JSON.stringify(tripData));
     }
 
     function exportData() {
         const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(tripData));
-        navigator.clipboard.writeText(compressed).then(() => alert("極短碼已複製！"));
+        navigator.clipboard.writeText(compressed).then(() => alert("行程短碼已複製！"));
     }
 
     function importData() {
-        const code = prompt("請貼上短碼：");
+        const code = prompt("請貼上行程碼：");
         if (code) {
             try {
                 const decomp = LZString.decompressFromEncodedURIComponent(code);
@@ -184,7 +178,6 @@
         }
     }
 
-    // 拖曳邏輯修復
     function handleDragOver(ev) {
         ev.preventDefault();
         const target = ev.target.closest('.spot-item');
@@ -241,7 +234,9 @@
                 list.appendChild(item);
                 if (d !== 'pending' && i < tripData.d[d].length - 1) {
                     const l = document.createElement('a'); l.className = 'route-link';
-                    l.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(tripData.d[d][i])}&destination=${encodeURIComponent(tripData.d[d][i+1])}&travelmode=transit`;
+                    const from = encodeURIComponent(tripData.d[d][i]);
+                    const to = encodeURIComponent(tripData.d[d][i+1]);
+                    l.href = `https://www.google.com/maps/dir/?api=1&origin=${from}&destination=${to}&travelmode=transit`;
                     l.target = "_blank"; l.innerHTML = `<span class="route-btn">查看路徑</span>`;
                     list.appendChild(l);
                 }
